@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MediChain — Fake Medicine Detection</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --primary: #6366f1; --secondary: #7c3aed; --accent: #a855f7;
+      --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+      --dark: #1e1b4b; --darker: #0f0a2e;
+      --light: #f5f3ff; --card: #ffffff;
+      --text: #1e293b; --muted: #64748b;
+      --sidebar-w: 220px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;font-family:'Poppins',sans-serif}
+    body{background:#f1f0ff;min-height:100vh;display:flex;flex-direction:column}
+
+    /* ── LOGIN SCREEN ── */
+    #login-screen{
+      position:fixed;inset:0;background:linear-gradient(135deg,var(--darker) 0%,var(--dark) 50%,#2e1065 100%);
+      display:flex;align-items:center;justify-content:center;z-index:9999;
+    }
+    .login-box{
+      background:rgba(255,255,255,0.05);backdrop-filter:blur(20px);
+      border:1px solid rgba(255,255,255,0.15);border-radius:24px;
+      padding:50px 44px;width:420px;max-width:95vw;text-align:center;
+      box-shadow:0 30px 80px rgba(0,0,0,0.5);
+    }
+    .login-logo{font-size:3.5rem;margin-bottom:4px}
+    .login-brand{font-size:1.9rem;font-weight:800;color:#fff;letter-spacing:-0.5px}
+    .login-sub{font-size:0.82rem;color:#a5b4fc;margin-bottom:32px}
+    .login-box label{display:block;text-align:left;font-size:0.78rem;font-weight:600;color:#c4b5fd;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+    .login-box input{
+      width:100%;padding:13px 16px;background:rgba(255,255,255,0.08);
+      border:1.5px solid rgba(255,255,255,0.15);border-radius:10px;
+      color:#fff;font-size:0.95rem;font-weight:500;margin-bottom:16px;transition:.3s;
+    }
+    .login-box input:focus{outline:none;border-color:var(--accent);background:rgba(255,255,255,0.12)}
+    .login-box input::placeholder{color:rgba(255,255,255,0.35)}
+    .login-btn{
+      width:100%;padding:14px;background:linear-gradient(135deg,var(--primary),var(--accent));
+      color:#fff;border:none;border-radius:12px;font-size:1rem;font-weight:700;cursor:pointer;
+      letter-spacing:.5px;transition:.3s;margin-top:6px;
+    }
+    .login-btn:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(99,102,241,0.5)}
+    .login-err{color:#fca5a5;font-size:0.82rem;margin-top:8px;display:none}
+    .login-demo{color:#94a3b8;font-size:0.78rem;margin-top:16px}
+    .login-demo b{color:#a5b4fc}
+
+    /* ── APP LAYOUT ── */
+    #app{display:none;flex:1;flex-direction:column}
+    
+    /* ── TOP HEADER ── */
+    .topbar{
+      background:linear-gradient(135deg,var(--dark),var(--secondary));
+      padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;
+      box-shadow:0 4px 20px rgba(0,0,0,0.25);position:sticky;top:0;z-index:100;
+    }
+    .topbar-left{display:flex;align-items:center;gap:12px}
+    .topbar-logo{font-size:1.5rem;font-weight:800;color:#fff;display:flex;align-items:center;gap:8px}
+    .topbar-logo span.pill{
+      background:rgba(255,255,255,0.15);font-size:0.62rem;font-weight:600;
+      padding:3px 9px;border-radius:20px;letter-spacing:.5px;color:#c4b5fd;
+    }
+    .topbar-right{display:flex;align-items:center;gap:14px}
+    .user-chip{
+      background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);
+      border-radius:20px;padding:6px 14px;color:#fff;font-size:0.82rem;font-weight:600;
+      display:flex;align-items:center;gap:7px;cursor:pointer;
+    }
+    .user-chip .avatar{
+      width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--primary));
+      display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:800;color:#fff;
+    }
+    .logout-btn{
+      background:rgba(239,68,68,0.2);border:1px solid rgba(239,68,68,0.4);
+      color:#fca5a5;padding:6px 14px;border-radius:20px;font-size:0.8rem;font-weight:600;cursor:pointer;transition:.2s;
+    }
+    .logout-btn:hover{background:rgba(239,68,68,0.35)}
+
+    /* ── SIDEBAR + MAIN ── */
+    .layout{display:flex;flex:1;min-height:0}
+    .sidebar{
+      width:var(--sidebar-w);background:var(--dark);padding:24px 0 20px;
+      display:flex;flex-direction:column;gap:4px;
+      box-shadow:4px 0 20px rgba(0,0,0,0.2);flex-shrink:0;
+    }
+    .sidebar-section-lbl{
+      font-size:0.65rem;font-weight:700;color:#4c4890;text-transform:uppercase;letter-spacing:1.2px;
+      padding:12px 20px 4px;
+    }
+    .nav-item{
+      display:flex;align-items:center;gap:11px;padding:11px 20px;
+      color:#94a3b8;font-size:0.88rem;font-weight:600;cursor:pointer;transition:.25s;border-radius:0;
+      margin:0 8px;border-radius:10px;
+    }
+    .nav-item .nav-icon{font-size:1.15rem;width:26px;text-align:center}
+    .nav-item:hover{background:rgba(255,255,255,0.07);color:#c4b5fd}
+    .nav-item.active{background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;box-shadow:0 4px 15px rgba(99,102,241,0.35)}
+    .sidebar-footer{margin-top:auto;padding:16px 16px 0;border-top:1px solid rgba(255,255,255,0.07)}
+    .sidebar-user{color:#64748b;font-size:0.75rem;text-align:center;line-height:1.6}
+    .sidebar-user b{color:#a5b4fc;display:block;font-size:0.8rem}
+
+    /* ── MAIN CONTENT ── */
+    .main{flex:1;padding:28px;overflow-y:auto;background:#f1f0ff}
+    .panel{display:none;animation:fadeUp .4s ease}
+    .panel.active{display:block}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+
+    /* ── CARDS ── */
+    .card{background:#fff;border-radius:18px;padding:28px 32px;box-shadow:0 8px 30px rgba(99,102,241,0.08);margin-bottom:22px}
+    .card-header{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+    .card-header h2{font-size:1.4rem;font-weight:800;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+    .card-sub{color:var(--muted);font-size:0.88rem;font-weight:500;margin-top:-14px;margin-bottom:18px}
+
+    /* ── FORM ELEMENTS ── */
+    .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:14px}
+    label{display:block;font-weight:700;font-size:0.75rem;color:#475569;margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+    input,select{
+      width:100%;padding:11px 14px;border:2px solid #e2e8f0;border-radius:10px;
+      background:#f8fafc;font-weight:500;font-size:0.9rem;transition:.25s;color:var(--text);
+    }
+    input:focus,select:focus{border-color:var(--primary);outline:none;background:#fff;box-shadow:0 0 0 3px rgba(99,102,241,0.1)}
+    .btn{border:none;padding:12px 24px;border-radius:11px;font-weight:700;cursor:pointer;transition:.25s;font-size:0.9rem;letter-spacing:.4px}
+    .btn-primary{background:linear-gradient(135deg,var(--primary),var(--secondary));color:#fff;box-shadow:0 6px 20px rgba(99,102,241,0.3);width:100%}
+    .btn-primary:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(99,102,241,0.4)}
+    .btn-sm{padding:8px 18px;font-size:0.82rem;width:auto}
+
+    /* ── ALERTS ── */
+    .alert{padding:18px 20px;border-radius:14px;margin-top:20px;border-left:5px solid;animation:fadeUp .3s ease}
+    .alert-success{background:#ecfdf5;border-left-color:var(--success);color:#065f46}
+    .alert-danger{background:#fef2f2;border-left-color:var(--danger);color:#7f1d1d}
+    .alert h3{font-weight:800;margin-bottom:8px;font-size:1rem}
+    .result-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid rgba(0,0,0,0.07);font-size:0.88rem}
+    .result-row:last-of-type{border-bottom:none}
+    .result-val{font-weight:700;color:var(--primary)}
+
+    /* ── QR GRID ── */
+    .qr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:18px;margin-top:24px}
+    .qr-tile{
+      background:linear-gradient(135deg,#f5f3ff,#faf5ff);padding:18px;
+      border-radius:14px;border:2px solid #e9d5ff;text-align:center;
+      box-shadow:0 8px 20px rgba(168,85,247,0.12);transition:.3s;
+    }
+    .qr-tile:hover{transform:translateY(-4px);box-shadow:0 14px 35px rgba(168,85,247,0.22)}
+    .qr-tile canvas{margin:0 auto 12px;border:3px solid var(--primary);border-radius:8px;padding:6px;background:#fff}
+    .qr-info{font-size:0.75rem;color:#475569;line-height:1.6}
+    .qr-info b{color:var(--primary);font-weight:800;display:block;margin-bottom:4px}
+
+    /* ── SUPPLY CHAIN ── */
+    .chain-step{display:flex;gap:14px;margin-bottom:18px;align-items:flex-start}
+    .step-num{width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.1rem;flex-shrink:0}
+    .step-body{background:#f8f7ff;padding:13px 18px;border-radius:12px;flex:1;border-left:4px solid var(--primary)}
+    .step-title{font-weight:800;color:var(--primary);margin-bottom:4px;font-size:0.95rem}
+    .step-detail{font-size:0.85rem;color:var(--muted);margin-bottom:6px}
+    .badge{display:inline-block;padding:4px 11px;border-radius:20px;font-size:0.7rem;font-weight:700;text-transform:uppercase}
+    .badge-ok{background:#dcfce7;color:#166534}
+    .badge-here{background:#fef3c7;color:#92400e}
+
+    /* ── LEDGER ── */
+    .ledger-entry{
+      background:#f8f7ff;padding:16px 20px;border-radius:12px;margin-bottom:10px;
+      border-left:5px solid var(--primary);display:flex;justify-content:space-between;align-items:center;
+    }
+    .le-id{font-weight:800;color:var(--primary);font-size:0.88rem;margin-bottom:4px}
+    .le-action{font-size:0.85rem;color:var(--text);font-weight:600;margin-bottom:4px}
+    .le-hash{font-family:monospace;font-size:0.7rem;color:var(--muted)}
+    .le-time{font-size:0.75rem;color:var(--muted);text-align:right;min-width:110px}
+
+    /* ── SCANNER ── */
+    #reader{width:100%;border-radius:14px;overflow:hidden;margin-top:14px}
+    #reader video{border-radius:14px}
+
+    /* ── SUPPORT CHAT ── */
+    #chat-btn{
+      position:fixed;bottom:28px;right:28px;width:58px;height:58px;
+      background:linear-gradient(135deg,var(--primary),var(--accent));
+      border-radius:50%;display:flex;align-items:center;justify-content:center;
+      font-size:1.5rem;cursor:pointer;box-shadow:0 8px 25px rgba(99,102,241,0.5);
+      transition:.3s;z-index:500;border:none;color:#fff;
+    }
+    #chat-btn:hover{transform:scale(1.1);box-shadow:0 12px 35px rgba(99,102,241,0.6)}
+    #chat-panel{
+      position:fixed;bottom:100px;right:28px;width:330px;max-height:480px;
+      background:#fff;border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.18);
+      display:none;flex-direction:column;overflow:hidden;z-index:500;
+      border:1px solid rgba(99,102,241,0.15);
+    }
+    #chat-panel.open{display:flex;animation:fadeUp .3s ease}
+    .chat-header{
+      background:linear-gradient(135deg,var(--primary),var(--accent));
+      padding:16px 18px;display:flex;align-items:center;justify-content:space-between;
+    }
+    .chat-header-info{display:flex;align-items:center;gap:10px}
+    .chat-avatar{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:1.2rem}
+    .chat-header h4{font-size:0.95rem;font-weight:700;color:#fff;margin-bottom:1px}
+    .chat-header p{font-size:0.72rem;color:rgba(255,255,255,0.75)}
+    .chat-close{background:none;border:none;color:#fff;font-size:1.2rem;cursor:pointer;opacity:.8}
+    .chat-close:hover{opacity:1}
+    .chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;max-height:300px}
+    .chat-msg{max-width:82%;padding:9px 13px;border-radius:14px;font-size:0.83rem;line-height:1.5}
+    .chat-msg.bot{background:#f1f0ff;color:var(--text);align-self:flex-start;border-bottom-left-radius:4px}
+    .chat-msg.user{background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;align-self:flex-end;border-bottom-right-radius:4px}
+    .chat-footer{padding:12px;border-top:1px solid #f1f0ff;display:flex;gap:8px;align-items:center}
+    .chat-footer input{
+      flex:1;padding:9px 13px;border:1.5px solid #e2e8f0;border-radius:10px;
+      font-size:0.85rem;background:#f8fafc;
+    }
+    .chat-footer input:focus{outline:none;border-color:var(--primary)}
+    .chat-send{
+      background:linear-gradient(135deg,var(--primary),var(--accent));border:none;
+      color:#fff;width:36px;height:36px;border-radius:10px;cursor:pointer;font-size:1rem;
+      display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    }
+    .quick-replies{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 10px}
+    .qr-chip{
+      background:#f1f0ff;border:1px solid #c4b5fd;color:var(--primary);
+      font-size:0.73rem;font-weight:600;padding:4px 10px;border-radius:20px;cursor:pointer;transition:.2s;
+    }
+    .qr-chip:hover{background:var(--primary);color:#fff}
+
+    /* ── SCANNER CONTROLS ── */
+    .scan-row{display:flex;gap:10px;align-items:flex-end;margin-top:10px}
+    .scan-row .form-group{flex:1;margin:0}
+    .scan-row .btn{width:auto;min-width:110px;align-self:flex-end}
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:768px){
+      .sidebar{display:none}
+      .main{padding:18px}
+      .form-grid{grid-template-columns:1fr}
+      #chat-panel{width:94vw;right:3vw}
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════ LOGIN SCREEN ═══════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">💊</div>
+    <div class="login-brand">MediChain</div>
+    <div class="login-sub">Blockchain-Powered Medicine Verification</div>
+    <div>
+      <label>Username</label>
+      <input type="text" id="l-user" placeholder="Enter username" autocomplete="off"/>
+      <label>Password</label>
+      <input type="password" id="l-pass" placeholder="Enter password" onkeypress="if(event.key==='Enter')doLogin()"/>
+      <div class="login-err" id="login-err">❌ Invalid credentials. Try: admin / medichain2026</div>
+      <button class="login-btn" onclick="doLogin()">🔐 Sign In to MediChain</button>
+    </div>
+    <div class="login-demo">Demo credentials — Username: <b>admin</b>  Password: <b>medichain2026</b></div>
+  </div>
+</div>
+
+<!-- ═══════════════ MAIN APP ═══════════════ -->
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">💊 MediChain <span class="pill">BLOCKCHAIN</span></div>
+    </div>
+    <div class="topbar-right">
+      <div class="user-chip">
+        <div class="avatar" id="av-initials">AD</div>
+        <span id="av-name">Admin</span>
+      </div>
+      <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- LAYOUT -->
+  <div class="layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+      <div class="sidebar-section-lbl">Main Menu</div>
+      <div class="nav-item active" data-panel="register" onclick="switchPanel('register',this)">
+        <span class="nav-icon">📋</span> Register Medicine
+      </div>
+      <div class="nav-item" data-panel="verify" onclick="switchPanel('verify',this)">
+        <span class="nav-icon">✅</span> Verify & Scan
+      </div>
+      <div class="nav-item" data-panel="supply" onclick="switchPanel('supply',this)">
+        <span class="nav-icon">🔗</span> Supply Chain
+      </div>
+      <div class="nav-item" data-panel="ledger" onclick="switchPanel('ledger',this)">
+        <span class="nav-icon">📒</span> Blockchain Ledger
+      </div>
+      <div class="sidebar-section-lbl">Support</div>
+      <div class="nav-item" onclick="toggleChat()">
+        <span class="nav-icon">💬</span> Live Support
+      </div>
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <b id="sb-user">Admin User</b>
+          jivannimase3942@gmail.com<br/>
+          <span style="color:#4c4890;font-size:0.7rem">MediChain v2.0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="main">
+
+      <!-- PANEL: REGISTER -->
+      <div id="panel-register" class="panel active">
+        <div class="card">
+          <div class="card-header"><h2>📋 Register Medicine to Blockchain</h2></div>
+          <p class="card-sub">Add new medicines with batch details. System generates unique QR codes and logs to the immutable ledger.</p>
+          <div class="form-grid">
+            <div><label>Medicine Name *</label><input id="inp-name" type="text" placeholder="e.g. Paracetamol"/></div>
+            <div><label>Strength *</label><input id="inp-strength" type="text" placeholder="e.g. 500mg"/></div>
+            <div><label>Form *</label>
+              <select id="inp-form">
+                <option value="">Select Form</option>
+                <option>Tablet</option><option>Capsule</option><option>Syrup</option>
+                <option>Injection</option><option>Cream</option><option>Drops</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div><label>Batch Number *</label><input id="inp-batch" placeholder="e.g. BT-2026-001"/></div>
+            <div><label>Manufacturer *</label><input id="inp-mfg" placeholder="e.g. Sun Pharma Ltd."/></div>
+            <div><label>Expiry Date *</label><input type="month" id="inp-expiry"/></div>
+          </div>
+          <div class="form-grid">
+            <div><label>Quantity</label><input type="number" id="inp-qty" value="1" min="1" max="50"/></div>
+            <div><label>Price (₹)</label><input type="number" id="inp-price" placeholder="e.g. 50"/></div>
+          </div>
+          <button class="btn btn-primary" onclick="registerMedicine()">🔐 Register &amp; Generate QR Codes</button>
+          <div id="register-result"></div>
+        </div>
+      </div>
+
+      <!-- PANEL: VERIFY -->
+      <div id="panel-verify" class="panel">
+        <div class="card">
+          <div class="card-header"><h2>✅ Verify &amp; Scan Medicine</h2></div>
+          <p class="card-sub">Scan QR code from medicine package or enter code manually to verify authenticity on the blockchain.</p>
+          <div style="background:#f5f3ff;padding:18px;border-radius:14px;margin-bottom:18px">
+            <button class="btn btn-primary btn-sm" id="camera-btn" onclick="startScanner()" style="width:auto;margin-bottom:12px">📷 Open Camera Scanner</button>
+            <div id="reader"></div>
+          </div>
+          <div class="scan-row">
+            <div class="form-group">
+              <label>Manual Code Entry</label>
+              <input type="text" id="manual-code" placeholder="Enter medicine code e.g. MC-0001" onkeypress="if(event.key==='Enter')verifyCode()"/>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="verifyCode()">Verify ↗</button>
+          </div>
+          <div id="verify-result"></div>
+        </div>
+      </div>
+
+      <!-- PANEL: SUPPLY CHAIN -->
+      <div id="panel-supply" class="panel">
+        <div class="card">
+          <div class="card-header"><h2>🔗 Supply Chain Tracking</h2></div>
+          <p class="card-sub">Track medicine journey from manufacturer to pharmacy with blockchain verification at each checkpoint.</p>
+          <div><label>Select Medicine</label>
+            <select id="supply-select" onchange="showSupplyChain()" style="max-width:400px">
+              <option value="">-- Select a registered medicine --</option>
+            </select>
+          </div>
+          <div id="supply-chain" style="margin-top:24px"></div>
+        </div>
+      </div>
+
+      <!-- PANEL: LEDGER -->
+      <div id="panel-ledger" class="panel">
+        <div class="card">
+          <div class="card-header"><h2>📒 Immutable Blockchain Ledger</h2></div>
+          <p class="card-sub">Complete cryptographic record of all registrations and verifications. Every entry is tamper-proof.</p>
+          <div id="ledger-list"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ SUPPORT CHAT ═══════════════ -->
+<button id="chat-btn" onclick="toggleChat()" title="Live Support Chat">💬</button>
+<div id="chat-panel">
+  <div class="chat-header">
+    <div class="chat-header-info">
+      <div class="chat-avatar">🤖</div>
+      <div>
+        <h4>MediChain Support</h4>
+        <p>● Online — avg. reply &lt;1 min</p>
+      </div>
+    </div>
+    <button class="chat-close" onclick="toggleChat()">✕</button>
+  </div>
+  <div class="chat-messages" id="chat-msgs"></div>
+  <div class="quick-replies" id="quick-replies">
+    <span class="qr-chip" onclick="sendQuick('How do I register a medicine?')">Register medicine</span>
+    <span class="qr-chip" onclick="sendQuick('How does QR verification work?')">QR verification</span>
+    <span class="qr-chip" onclick="sendQuick('What is the supply chain?')">Supply chain</span>
+    <span class="qr-chip" onclick="sendQuick('Medicine is showing FAKE')">Fake alert help</span>
+  </div>
+  <div class="chat-footer">
+    <input type="text" id="chat-input" placeholder="Type a message…" onkeypress="if(event.key==='Enter')sendChat()"/>
+    <button class="chat-send" onclick="sendChat()">➤</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════ AUTH ═══════════════
+const USERS = { admin:"medichain2026", pharmacist:"pharma123", jivan:"jivan2026" };
+let currentUser = null;
+
+function doLogin(){
+  const u=document.getElementById('l-user').value.trim().toLowerCase();
+  const p=document.getElementById('l-pass').value;
+  if(USERS[u] && USERS[u]===p){
+    currentUser=u;
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('app').style.flexDirection='column';
+    const display=u.charAt(0).toUpperCase()+u.slice(1);
+    document.getElementById('av-initials').textContent=display.slice(0,2).toUpperCase();
+    document.getElementById('av-name').textContent=display;
+    document.getElementById('sb-user').textContent=display+' User';
+    initSampleData();
+    addBotMsg("👋 Welcome back, "+display+"! How can I help you today?");
+  } else {
+    document.getElementById('login-err').style.display='block';
+    setTimeout(()=>document.getElementById('login-err').style.display='none',3500);
+  }
+}
+function doLogout(){
+  if(!confirm('Sign out of MediChain?')) return;
+  currentUser=null;
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('l-user').value='';
+  document.getElementById('l-pass').value='';
+}
+
+// ═══════════════ STATE ═══════════════
+let medicines={}, ledger=[], scannerActive=false, qrScanner=null;
+
+function initSampleData(){
+  const s=[
+    {id:'MC-0001',name:'Paracetamol',strength:'500mg',form:'Tablet',batch:'BT-2026-001',mfg:'Sun Pharma Ltd.',expiry:'2028-06',price:45},
+    {id:'MC-0002',name:'Amoxicillin',strength:'250mg',form:'Capsule',batch:'BT-2026-002',mfg:'Cipla Ltd.',expiry:'2027-03',price:120},
+    {id:'MC-0003',name:'Ibuprofen',strength:'400mg',form:'Tablet',batch:'BT-2026-003',mfg:'Mankind Pharma',expiry:'2027-12',price:35},
+    {id:'MC-0004',name:'Omeprazole',strength:'20mg',form:'Capsule',batch:'BT-2026-004',mfg:"Dr. Reddy's",expiry:'2028-09',price:75},
+  ];
+  s.forEach(m=>{ medicines[m.id]=m; addLedger('REGISTER','Registered: '+m.name+' '+m.strength,m.id); });
+  populateSupplySelect();
+}
+
+function genHash(t){
+  let h=0;
+  for(let i=0;i<t.length;i++){h=((h<<5)-h)+t.charCodeAt(i);h=h&h;}
+  return Math.abs(h).toString(16).padStart(16,'0');
+}
+function addLedger(type,action,code){
+  ledger.push({
+    id:'BLOCK-'+String(ledger.length+1).padStart(4,'0'),
+    type,action,code:code||'',
+    hash:genHash(action+Date.now()),
+    prevHash:ledger.length>0?ledger[ledger.length-1].hash:'0000000000000000',
+    timestamp:new Date().toLocaleString('en-IN')
+  });
+}
+
+// ═══════════════ NAVIGATION ═══════════════
+function switchPanel(name,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  el.classList.add('active');
+  if(name==='ledger') renderLedger();
+  if(name==='supply') populateSupplySelect();
+  if(name==='verify' && scannerActive) stopScanner();
+}
+
+// ═══════════════ REGISTER ═══════════════
+function registerMedicine(){
+  const name=v('inp-name'), strength=v('inp-strength'), form=v('inp-form');
+  const batch=v('inp-batch'), mfg=v('inp-mfg'), expiry=v('inp-expiry');
+  const qty=parseInt(document.getElementById('inp-qty').value)||1;
+  const price=v('inp-price');
+  if(!name||!strength||!form||!batch||!mfg||!expiry){ showToast('⚠️ Please fill all required fields'); return; }
+
+  const baseIdx=Object.keys(medicines).length;
+  const ids=[];
+  for(let i=0;i<qty;i++){
+    const id='MC-'+String(baseIdx+i+1).padStart(4,'0');
+    medicines[id]={id,name,strength,form,batch,mfg,expiry,price,registered:new Date().toLocaleString('en-IN')};
+    addLedger('REGISTER','Registered: '+name+' '+strength+' (Batch: '+batch+')',id);
+    ids.push(id);
+  }
+
+  let html=`<div class="alert alert-success"><h3>✅ ${qty} Medicine(s) Registered Successfully!</h3><p>QR codes generated and added to blockchain ledger.</p></div><div class="qr-grid">`;
+  ids.forEach(id=>{
+    html+=`<div class="qr-tile"><div id="qr-${id}"></div><div class="qr-info"><b>${id}</b><span>${name} ${strength}</span><br/><small>${form} | ${batch}</small></div></div>`;
+  });
+  html+=`</div><button class="btn btn-primary btn-sm" style="margin-top:16px;width:auto" onclick="window.print()">🖨️ Print QR Labels</button>`;
+  document.getElementById('register-result').innerHTML=html;
+
+  ids.forEach((id,i)=>{
+    setTimeout(()=>{
+      const el=document.getElementById('qr-'+id);
+      if(el) new QRCode(el,{text:id,width:120,height:120,colorDark:'#6366f1',colorLight:'#f8f8ff'});
+    },i*80);
+  });
+
+  ['inp-name','inp-strength','inp-form','inp-batch','inp-mfg','inp-expiry','inp-price'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('inp-qty').value='1';
+  populateSupplySelect();
+}
+
+// ═══════════════ VERIFY ═══════════════
+function startScanner(){
+  if(scannerActive) return;
+  scannerActive=true;
+  const btn=document.getElementById('camera-btn');
+  btn.textContent='📹 Camera Active…'; btn.disabled=true;
+  qrScanner=new Html5Qrcode('reader');
+  Html5Qrcode.getCameras().then(cams=>{
+    if(cams&&cams.length){
+      qrScanner.start(cams[0].id,{fps:15,qrbox:{width:240,height:240}},(txt)=>{ verifyCode(txt); stopScanner(); },()=>{});
+    } else { showToast('No camera found'); stopScanner(); }
+  }).catch(()=>{ showToast('Camera access denied — use manual entry'); stopScanner(); });
+}
+function stopScanner(){
+  if(qrScanner){ try{qrScanner.stop();}catch(e){} }
+  scannerActive=false;
+  const btn=document.getElementById('camera-btn');
+  if(btn){ btn.textContent='📷 Open Camera Scanner'; btn.disabled=false; }
+}
+function verifyCode(code){
+  const mc=(code||document.getElementById('manual-code').value.trim()).toUpperCase();
+  if(!mc){ showToast('Please enter a medicine code'); return; }
+  const m=medicines[mc], out=document.getElementById('verify-result');
+  if(m){
+    addLedger('VERIFY','Verified: '+m.name+' '+m.strength+' ('+mc+')',mc);
+    out.innerHTML=`<div class="alert alert-success">
+      <h3>✅ AUTHENTIC MEDICINE VERIFIED</h3>
+      ${row('Code',mc)}${row('Medicine',m.name+' '+m.strength)}${row('Form',m.form)}
+      ${row('Batch',m.batch)}${row('Manufacturer',m.mfg)}${row('Expiry',m.expiry)}${row('Price','₹'+(m.price||'N/A'))}
+      <p style="margin-top:12px;font-weight:600;font-size:.9rem">✔ This medicine is blockchain-verified as authentic.</p></div>`;
+  } else {
+    addLedger('FRAUD_ATTEMPT','Unregistered code scanned: '+mc,mc);
+    out.innerHTML=`<div class="alert alert-danger">
+      <h3>🚨 FAKE / UNREGISTERED MEDICINE DETECTED</h3>
+      ${row('Scanned Code',mc)}
+      <p style="margin-top:12px;font-weight:600">⚠️ This code is NOT in the blockchain registry — likely counterfeit.</p>
+      <p style="margin-top:8px">Do NOT consume. Report to nearest health authority immediately.</p></div>`;
+  }
+  document.getElementById('manual-code').value='';
+}
+function row(k,v){return`<div class="result-row"><span>${k}</span><span class="result-val">${v}</span></div>`;}
+
+// ═══════════════ SUPPLY CHAIN ═══════════════
+const STAGES=[
+  {icon:'🏭',stage:'Manufactured',detail:'Pharmaceutical Plant'},
+  {icon:'🔬',stage:'Quality Control',detail:'Central Testing Lab'},
+  {icon:'📦',stage:'Packaging',detail:'Distribution Center'},
+  {icon:'🚚',stage:'In Transit',detail:'Regional Warehouse'},
+  {icon:'💊',stage:'Retail Pharmacy',detail:'Patient Delivery Point'},
+];
+function populateSupplySelect(){
+  const s=document.getElementById('supply-select');
+  s.innerHTML='<option value="">-- Select a registered medicine --</option>';
+  Object.entries(medicines).forEach(([id,m])=>{ s.innerHTML+=`<option value="${id}">${m.name} ${m.strength} (${id})</option>`; });
+}
+function showSupplyChain(){
+  const id=document.getElementById('supply-select').value;
+  const chain=document.getElementById('supply-chain');
+  if(!medicines[id]){chain.innerHTML='';return;}
+  chain.innerHTML=STAGES.map((st,i)=>{
+    const d=new Date(); d.setDate(d.getDate()+i);
+    const last=i===STAGES.length-1;
+    return `<div class="chain-step">
+      <div class="step-num">${i+1}</div>
+      <div class="step-body">
+        <div class="step-title">${st.icon} ${st.stage}</div>
+        <div class="step-detail">${st.detail}</div>
+        <div class="step-detail">📅 ${d.toLocaleDateString('en-IN')}</div>
+        <span class="badge ${last?'badge-here':'badge-ok'}">${last?'📍 Current Location':'✅ Verified'}</span>
+      </div></div>`;
+  }).join('');
+}
+
+// ═══════════════ LEDGER ═══════════════
+function renderLedger(){
+  const d=document.getElementById('ledger-list');
+  if(!ledger.length){d.innerHTML='<p style="color:var(--muted);text-align:center;padding:20px">No ledger entries yet.</p>';return;}
+  d.innerHTML=[...ledger].reverse().map(e=>`
+    <div class="ledger-entry">
+      <div>
+        <div class="le-id">${e.id} · <span style="color:var(--muted)">${e.type}</span></div>
+        <div class="le-action">${e.action}</div>
+        <div class="le-hash">Hash: ${e.hash} | Prev: ${e.prevHash}</div>
+      </div>
+      <div class="le-time">${e.timestamp}</div>
+    </div>`).join('');
+}
+
+// ═══════════════ SUPPORT CHAT ═══════════════
+const BOT_ANSWERS={
+  'register medicine':'To register a medicine: go to 📋 Register Medicine tab → fill in the name, strength, form, batch, manufacturer, and expiry → click "Register & Generate QR Codes". Each unit gets a unique QR code logged to the blockchain.',
+  'qr verification':'Each medicine gets a unique QR code at registration. To verify: go to ✅ Verify & Scan → use camera or type the code manually. The system checks the blockchain and returns AUTHENTIC ✅ or FAKE 🚨.',
+  'supply chain':'The supply chain panel shows the medicine journey: Manufacturer → Quality Control → Packaging → Transit → Pharmacy. Select any registered medicine from the dropdown to see its chain.',
+  'fake alert help':'If you see a FAKE alert 🚨: (1) Do NOT dispense or consume the medicine. (2) Note the scanned code. (3) Report to the manufacturer and local drug authority. (4) Check if the QR was damaged or misprinted.',
+  'default':'Thanks for your message! For the best help, please contact: jivannimase3942@gmail.com or try one of the quick replies below. I can assist with registration, verification, supply chain tracking, and fraud detection.'
+};
+function addBotMsg(txt){
+  const msgs=document.getElementById('chat-msgs');
+  const d=document.createElement('div');
+  d.className='chat-msg bot'; d.textContent=txt;
+  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight;
+}
+function addUserMsg(txt){
+  const msgs=document.getElementById('chat-msgs');
+  const d=document.createElement('div');
+  d.className='chat-msg user'; d.textContent=txt;
+  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight;
+}
+function sendChat(){
+  const inp=document.getElementById('chat-input');
+  const txt=inp.value.trim(); if(!txt) return;
+  addUserMsg(txt); inp.value='';
+  setTimeout(()=>{
+    const key=Object.keys(BOT_ANSWERS).find(k=>txt.toLowerCase().includes(k));
+    addBotMsg(BOT_ANSWERS[key]||BOT_ANSWERS['default']);
+  },550);
+}
+function sendQuick(q){ addUserMsg(q); document.getElementById('chat-input').value=''; setTimeout(()=>{ const key=Object.keys(BOT_ANSWERS).find(k=>q.toLowerCase().includes(k)); addBotMsg(BOT_ANSWERS[key]||BOT_ANSWERS['default']); },400); }
+function toggleChat(){
+  const p=document.getElementById('chat-panel');
+  p.classList.toggle('open');
+}
+
+// ═══════════════ UTILS ═══════════════
+function v(id){return document.getElementById(id).value.trim();}
+function showToast(msg){
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:100px;left:50%;transform:translateX(-50%);background:#1e1b4b;color:#fff;padding:10px 22px;border-radius:20px;font-size:.85rem;font-weight:600;z-index:9000;box-shadow:0 8px 25px rgba(0,0,0,.3)';
+  t.textContent=msg; document.body.appendChild(t);
+  setTimeout(()=>t.remove(),3000);
+}
+
+// ═══════════════ INIT CHAT ═══════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  addBotMsg('👋 Hi! I\'m the MediChain Support Bot. Please login to get started. How can I help you?');
+});
+</script>
+</body>
+</html>
